@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JARVIS HUD</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --hud: #00d4ff; --bg: #020b12; --glow: 0 0 12px rgba(0,212,255,.4); }
+    body {
+      background: var(--bg); color: var(--hud);
+      font-family: 'Share Tech Mono', monospace;
+      height: 100dvh; display: grid;
+      grid-template-rows: auto auto 1fr auto auto;
+      overflow: hidden;
+    }
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
+      background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.012) 2px,rgba(0,212,255,.012) 4px);
+    }
+
+    header { display:flex; align-items:center; justify-content:space-between; padding:12px 28px; border-bottom:1px solid rgba(0,212,255,.2); }
+    .logo { font-family:'Orbitron',sans-serif; font-size:22px; font-weight:700; letter-spacing:8px; text-shadow:var(--glow); }
+    .logo span { color:#fff; }
+    .stats { display:flex; gap:24px; align-items:center; }
+    .stat { display:flex; flex-direction:column; align-items:center; font-size:9px; opacity:.65; letter-spacing:1px; }
+    .stat b { font-size:14px; opacity:1; color:var(--hud); }
+    .dot-on { width:8px; height:8px; background:#39ff7e; border-radius:50%; animation:pulse 2s infinite; box-shadow:0 0 8px #39ff7e; display:inline-block; }
+
+    /* Voice selector */
+    .voice-row { display:flex; align-items:center; gap:8px; padding:8px 28px 0; font-size:10px; letter-spacing:1px; opacity:.7; }
+    .voice-row label { color:var(--hud); }
+    #voice-sel {
+      background: rgba(0,212,255,.06);
+      border: 1px solid rgba(0,212,255,.3);
+      color: var(--hud);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    #voice-sel option { background: var(--bg); color: var(--hud); }
+    #voice-sel:focus { border-color: rgba(0,212,255,.6); box-shadow: var(--glow); }
+    #test-btn {
+      background: rgba(0,212,255,.06); border:1px solid rgba(0,212,255,.25);
+      color: var(--hud); font-family: 'Share Tech Mono', monospace;
+      font-size: 10px; letter-spacing: 1px; padding: 4px 10px;
+      border-radius: 3px; cursor: pointer;
+    }
+    #test-btn:hover { background:rgba(0,212,255,.15); }
+
+    #sphere-wrap { display:flex; align-items:center; justify-content:center; padding:16px 0; }
+    .sphere { position:relative; width:200px; height:200px; perspective:600px; }
+    .sphere.speaking .core-ball { animation:speak-pulse .6s ease-in-out infinite; }
+    .ring { position:absolute; inset:0; border-radius:50%; border:1.5px solid rgba(0,212,255,.22); }
+    .r1{animation:spinY 8s linear infinite}
+    .r2{inset:10px;animation:spinX 12s linear infinite;border-color:rgba(0,200,255,.18)}
+    .r3{inset:20px;animation:spinZ 6s linear infinite;border-color:rgba(0,220,255,.28)}
+    .r4{inset:32px;animation:spinY 5s linear infinite reverse;border-color:rgba(0,212,255,.14)}
+    .r5{inset:44px;animation:spinX 9s linear infinite reverse;border-color:rgba(0,212,255,.2)}
+    .r6{inset:56px;animation:spinZ 15s linear infinite;border-color:rgba(0,212,255,.12)}
+    .core { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+    .core-ball { width:44px; height:44px; border-radius:50%; background:rgba(0,212,255,.12); border:1.5px solid rgba(0,212,255,.7); box-shadow:0 0 24px rgba(0,212,255,.5),inset 0 0 14px rgba(0,212,255,.25); animation:pulse 2.5s infinite; }
+    .dot { position:absolute; top:50%; left:50%; border-radius:50%; background:var(--hud); box-shadow:0 0 6px var(--hud); }
+    .d1{width:5px;height:5px;margin:-2.5px;animation:orb1 4s linear infinite}
+    .d2{width:4px;height:4px;margin:-2px;background:#fff;box-shadow:0 0 4px #fff;animation:orb2 6.5s linear infinite}
+    .d3{width:4px;height:4px;margin:-2px;background:#4af;box-shadow:0 0 4px #4af;animation:orb3 3.2s linear infinite}
+    .d4{width:5px;height:5px;margin:-2.5px;animation:orb1 7s linear infinite reverse}
+    .d5{width:3px;height:3px;margin:-1.5px;background:rgba(0,212,255,.7);animation:orb2 5.5s linear infinite reverse}
+    .d6{width:4px;height:4px;margin:-2px;background:#aef;box-shadow:0 0 4px #aef;animation:orb3 9s linear infinite reverse}
+    .d7{width:3px;height:3px;margin:-1.5px;animation:orb1 11s linear infinite;background:rgba(0,212,255,.5)}
+    .d8{width:4px;height:4px;margin:-2px;animation:orb3 14s linear infinite reverse;background:#8df}
+
+    #chat { overflow-y:auto; padding:12px 28px; display:flex; flex-direction:column; gap:10px; }
+    #chat::-webkit-scrollbar{width:2px}
+    #chat::-webkit-scrollbar-thumb{background:rgba(0,212,255,.3)}
+    .msg { display:flex; flex-direction:column; gap:2px; animation:fadeUp .3s ease; }
+    .msg-lbl { font-size:9px; letter-spacing:2px; opacity:.4; }
+    .msg-txt { font-size:13px; line-height:1.6; max-width:700px; }
+    .msg.user .msg-txt { color:rgba(0,212,255,.6); }
+    .msg.ai .msg-txt { color:var(--hud); text-shadow:0 0 8px rgba(0,212,255,.2); }
+    .dots span{display:inline-block;animation:blink 1.2s infinite}
+    .dots span:nth-child(2){animation-delay:.2s}
+    .dots span:nth-child(3){animation-delay:.4s}
+
+    #vstatus { padding:3px 28px 6px; font-size:9px; letter-spacing:1px; color:#ffb830; min-height:18px; }
+
+    footer { display:flex; gap:10px; align-items:center; padding:12px 28px 20px; border-top:1px solid rgba(0,212,255,.15); }
+
+    #mic {
+      width:44px; height:44px; border-radius:50%;
+      background:rgba(0,212,255,.06); border:1.5px solid rgba(0,212,255,.35);
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; position:relative; transition:all .2s;
+    }
+    #mic:hover { background:rgba(0,212,255,.14); box-shadow:var(--glow); }
+    #mic.on { border-color:#ff4e4e; background:rgba(255,78,78,.12); box-shadow:0 0 16px rgba(255,78,78,.45); }
+    #mic.on::after { content:''; position:absolute; inset:-5px; border-radius:50%; border:1.5px solid rgba(255,78,78,.5); animation:ripple 1.2s infinite; }
+    .bars { display:flex; gap:2px; align-items:flex-end; height:16px; }
+    .b { width:3px; border-radius:2px; background:var(--hud); transition:background .2s; }
+    #mic.on .b { background:#ff4e4e; animation:vpulse .5s ease-in-out infinite; }
+    #mic.on .b:nth-child(2){animation-delay:.1s}
+    #mic.on .b:nth-child(3){animation-delay:.2s}
+    #mic.on .b:nth-child(4){animation-delay:.15s}
+    #mic.on .b:nth-child(5){animation-delay:.05s}
+
+    #inp { flex:1; background:rgba(0,212,255,.04); border:1px solid rgba(0,212,255,.22); border-radius:3px; color:var(--hud); font-family:'Share Tech Mono',monospace; font-size:13px; padding:9px 12px; outline:none; transition:border-color .2s; }
+    #inp::placeholder { color:rgba(0,212,255,.25); }
+    #inp:focus { border-color:rgba(0,212,255,.55); box-shadow:var(--glow); }
+    #sbtn { background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.3); border-radius:3px; color:var(--hud); font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:2px; padding:9px 18px; cursor:pointer; transition:all .15s; }
+    #sbtn:hover { background:rgba(0,212,255,.18); box-shadow:var(--glow); }
+
+    .sbar { display:flex; justify-content:space-between; padding:4px 28px; font-size:9px; letter-spacing:2px; opacity:.35; border-top:1px solid rgba(0,212,255,.08); }
+
+    @keyframes spinY{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}
+    @keyframes spinX{from{transform:rotateX(0) rotateZ(20deg)}to{transform:rotateX(360deg) rotateZ(20deg)}}
+    @keyframes spinZ{from{transform:rotateZ(0) rotateY(40deg)}to{transform:rotateZ(360deg) rotateY(40deg)}}
+    @keyframes orb1{from{transform:rotate(0deg) translateX(80px)}to{transform:rotate(360deg) translateX(80px)}}
+    @keyframes orb2{from{transform:rotate(120deg) translateX(60px)}to{transform:rotate(480deg) translateX(60px)}}
+    @keyframes orb3{from{transform:rotate(240deg) translateX(95px)}to{transform:rotate(600deg) translateX(95px)}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes speak-pulse{0%,100%{transform:scale(1);box-shadow:0 0 24px rgba(0,212,255,.5),inset 0 0 14px rgba(0,212,255,.25)}50%{transform:scale(1.15);box-shadow:0 0 36px rgba(0,212,255,.8),inset 0 0 20px rgba(0,212,255,.4)}}
+    @keyframes ripple{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.2);opacity:0}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+    @keyframes vpulse{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">JAR<span>V</span>IS</div>
+  <div class="stats">
+    <div class="stat"><span>STATUS</span><b><span class="dot-on"></span></b></div>
+    <div class="stat"><span>MODELO</span><b id="mname">LOCAL</b></div>
+    <div class="stat"><span>UPTIME</span><b id="upt">00:00</b></div>
+    <div class="stat"><span>MSGS</span><b id="mc">0</b></div>
+    <div class="stat"><span>LATÊNCIA</span><b id="lat">—</b></div>
+  </div>
+</header>
+
+<div class="voice-row">
+  <label>// VOZ:</label>
+  <select id="voice-sel"><option>carregando...</option></select>
+  <button id="test-btn" onclick="testVoice()">TESTAR</button>
+</div>
+
+<div id="sphere-wrap">
+  <div class="sphere" id="sphere">
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+    <div class="ring r4"></div><div class="ring r5"></div><div class="ring r6"></div>
+    <div class="core"><div class="core-ball"></div></div>
+    <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+    <div class="dot d4"></div><div class="dot d5"></div><div class="dot d6"></div>
+    <div class="dot d7"></div><div class="dot d8"></div>
+  </div>
+</div>
+
+<div id="chat">
+  <div class="msg ai">
+    <div class="msg-lbl">// JARVIS</div>
+    <div class="msg-txt">Sistemas online. Pressione o microfone para falar ou digite abaixo.</div>
+  </div>
+</div>
+
+<div id="vstatus"></div>
+
+<footer>
+  <button id="mic" title="Clique para falar" onclick="toggleVoice()">
+    <div class="bars">
+      <div class="b" style="height:5px"></div>
+      <div class="b" style="height:10px"></div>
+      <div class="b" style="height:15px"></div>
+      <div class="b" style="height:10px"></div>
+      <div class="b" style="height:5px"></div>
+    </div>
+  </button>
+  <input id="inp" type="text" placeholder="// INSERIR COMANDO..." autocomplete="off"
+         onkeydown="if(event.key==='Enter')sendText()"/>
+  <button id="sbtn" onclick="sendText()">ENVIAR</button>
+</footer>
+
+<div class="sbar">
+  <span>OLLAMA // localhost:11434</span>
+  <span id="mdl">llama3.2</span>
+  <span>EDGE-TTS NEURAL</span>
+</div>
+
+<script>
+const WS_URL = 'ws://localhost:8765';
+const OLLAMA = 'http://localhost:11434/api/chat';
+const TTS_API = '/api/tts';
+const VOICES_API = '/api/voices';
+const VOICE_SET_API = '/api/voice';
+const MODEL = 'llama3.2';
+const SYSTEM = `Você é JARVIS, assistente de IA pessoal.
+Responda em português brasileiro, seja conciso e levemente sarcástico como o Jarvis do Tony Stark.
+Máximo 3 frases salvo quando pedirem algo longo.`;
+
+let ws, history=[], msgCount=0, t0=Date.now(), listening=false, recognition=null;
+let currentAudio=null;
+const $=id=>document.getElementById(id);
+
+async function loadVoices(){
+  try{
+    const r=await fetch(VOICES_API);
+    const d=await r.json();
+    const sel=$('voice-sel');
+    sel.innerHTML='';
+    Object.entries(d.voices).forEach(([key,v])=>{
+      const opt=document.createElement('option');
+      opt.value=key;opt.textContent=v.label;
+      if(key===d.current)opt.selected=true;
+      sel.appendChild(opt);
+    });
+    sel.onchange=async()=>{
+      await fetch(VOICE_SET_API,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({voice:sel.value})});
+    };
+  }catch(e){
+    $('voice-sel').innerHTML='<option>Edge-TTS offline (usando voz do browser)</option>';
+  }
+}
+
+function testVoice(){
+  const samples=[
+    'Sistemas online. Senhor, como posso ajudá-lo hoje?',
+    'Análise concluída. Os resultados são exatamente o que o senhor esperava.',
+    'Eu sugiro que reconsidere essa decisão. Mas é claro, é apenas uma sugestão.',
+    'Tudo operando dentro dos parâmetros normais.',
+  ];
+  speak(samples[Math.floor(Math.random()*samples.length)]);
+}
+
+function addMsg(role,text){
+  const el=document.createElement('div');
+  el.className=`msg ${role}`;
+  el.innerHTML=`<div class="msg-lbl">${role==='user'?'// OPERADOR':'// JARVIS'}</div><div class="msg-txt">${text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+  $('chat').appendChild(el);$('chat').scrollTop=99999;
+  if(role==='ai')speak(text);
+}
+function showThink(){
+  const el=document.createElement('div');el.id='th';el.className='msg ai';
+  el.innerHTML='<div class="msg-lbl">// JARVIS</div><div class="msg-txt"><span class="dots"><span>.</span><span>.</span><span>.</span></span></div>';
+  $('chat').appendChild(el);$('chat').scrollTop=99999;
+}
+function rmThink(){const t=$('th');if(t)t.remove();}
+function setVS(txt){$('vstatus').textContent=txt;}
+
+async function send(text){
+  if(!text.trim())return;
+  msgCount++;$('mc').textContent=msgCount;
+  addMsg('user',text);history.push({role:'user',content:text});
+  showThink();const ts=Date.now();
+  if(ws&&ws.readyState===1){window._ts=ts;ws.send(JSON.stringify({message:text}));return;}
+  try{
+    const r=await fetch(OLLAMA,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:MODEL,stream:false,messages:[{role:'system',content:SYSTEM},...history.slice(-10)]})});
+    const d=await r.json();rmThink();
+    const reply=d.message?.content||'Sem resposta.';
+    history.push({role:'assistant',content:reply});
+    $('lat').textContent=(Date.now()-ts)+'ms';addMsg('ai',reply);
+  }catch(e){rmThink();addMsg('ai','Ollama offline. Execute: ollama serve');}
+}
+
+function sendText(){const v=$('inp').value.trim();if(!v)return;$('inp').value='';send(v);}
+
+async function speak(text){
+  // Para qualquer áudio anterior
+  if(currentAudio){try{currentAudio.pause();currentAudio.src='';}catch(e){}currentAudio=null;}
+
+  // Tenta Edge-TTS via API
+  try{
+    const r=await fetch(TTS_API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:text})});
+    if(!r.ok)throw new Error('tts api falhou');
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    currentAudio=new Audio(url);
+    $('sphere').classList.add('speaking');
+    currentAudio.onended=()=>{$('sphere').classList.remove('speaking');URL.revokeObjectURL(url);};
+    currentAudio.onerror=()=>{$('sphere').classList.remove('speaking');fallbackSpeak(text);};
+    currentAudio.play().catch(()=>fallbackSpeak(text));
+  }catch(e){
+    fallbackSpeak(text);
+  }
+}
+
+function fallbackSpeak(text){
+  // Fallback: TTS do browser se Edge-TTS não estiver disponível
+  const synth=window.speechSynthesis;
+  if(!synth)return;
+  synth.cancel();
+  const u=new SpeechSynthesisUtterance(text.replace(/[*#`[\]]/g,'').substring(0,400));
+  u.lang='pt-BR';u.rate=1.05;u.pitch=0.88;
+  const voices=synth.getVoices();
+  const pt=voices.find(v=>v.lang.startsWith('pt-BR'))||voices.find(v=>v.lang.startsWith('pt'));
+  if(pt)u.voice=pt;
+  $('sphere').classList.add('speaking');
+  u.onend=()=>$('sphere').classList.remove('speaking');
+  synth.speak(u);
+}
+
+function toggleVoice(){listening?stopListen():startListen();}
+
+function startListen(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){setVS('// voz não suportada neste browser');return;}
+  recognition=new SR();recognition.lang='pt-BR';recognition.continuous=false;recognition.interimResults=true;
+  recognition.onstart=()=>{listening=true;$('mic').classList.add('on');setVS('// ouvindo...');};
+  recognition.onresult=(e)=>{
+    const t=Array.from(e.results).map(r=>r[0].transcript).join('');
+    setVS('// '+t);
+    if(e.results[e.results.length-1].isFinal){stopListen();send(t);setVS('');}
+  };
+  recognition.onerror=(e)=>{stopListen();setVS('// erro: '+e.error);};
+  recognition.onend=()=>stopListen();
+  recognition.start();
+}
+function stopListen(){
+  listening=false;$('mic').classList.remove('on');
+  if(recognition){try{recognition.stop();}catch(e){}}recognition=null;
+}
+
+function connectWS(){
+  ws=new WebSocket(WS_URL);
+  ws.onclose=()=>setTimeout(connectWS,3000);
+  ws.onmessage=(e)=>{
+    const d=JSON.parse(e.data);
+    if(d.type==='reply'){rmThink();history.push({role:'assistant',content:d.message});$('lat').textContent=(Date.now()-(window._ts||Date.now()))+'ms';addMsg('ai',d.message);}
+  };
+}
+
+setInterval(()=>{
+  const s=Math.floor((Date.now()-t0)/1000);
+  $('upt').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+},1000);
+
+loadVoices();
+try{connectWS();}catch(e){}
+</script>
+</body>
+</html>

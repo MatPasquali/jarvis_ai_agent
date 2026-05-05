@@ -1,0 +1,21 @@
+# ── CORE ──────────────────────────────
+ollama>=0.4.0              # cliente Ollama (modelo local)
+
+# ── VOZ ───────────────────────────────
+edge-tts>=6.1.0            # TTS neural da Microsoft (vozes em PT-BR)
+openai-whisper>=20231117   # STT: reconhecimento de fala local (modo voice terminal)
+pyttsx3>=2.90              # TTS fallback offline
+sounddevice>=0.4.6         # captura de áudio do microfone
+soundfile>=0.12.1          # leitura/escrita de arquivos de áudio
+numpy>=1.24.0              # processamento de áudio
+
+# ── MEMÓRIA ───────────────────────────
+chromadb>=0.5.0            # banco vetorial para busca semântica
+# (fallback automático para JSON se não estiver disponível)
+
+# ── HUD ───────────────────────────────
+aiohttp>=3.9.0             # servidor HTTP para o HUD
+websockets>=12.0           # WebSocket em tempo real
+
+# ── UTILS ─────────────────────────────
+python-dotenv>=1.0.0       # variáveis de ambiente
