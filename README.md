@@ -2,6 +2,9 @@
 
 > *"Às vezes os maiores sonhos começam na poltrona do cinema."*
 
+[![Demo ao Vivo](https://img.shields.io/badge/🖥️%20Demo%20ao%20Vivo-HUD%20Interativo-00d4ff?style=for-the-badge)](https://matpasquali.github.io/jarvis_ai_agent/)
+[![GitHub](https://img.shields.io/badge/GitHub-MatPasquali-181717?style=for-the-badge&logo=github)](https://github.com/MatPasquali/jarvis_ai_agent)
+
 ---
 
 ## 🎬 A Inspiração
